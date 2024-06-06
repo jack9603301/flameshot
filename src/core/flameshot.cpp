@@ -32,6 +32,13 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVersionNumber>
+#include <QtPrintSupport/QPrinter>
+#include <QtPrintSupport/QPrintDialog>
+#include <QFileDialog>
+
+#ifdef USE_PLUGIN_MANAGER
+#include "core/pluginmanager.h"
+#endif
 
 #if defined(Q_OS_MACOS)
 #include <QScreen>
@@ -344,6 +351,12 @@ void Flameshot::requestCapture(const CaptureRequest& request)
     }
 }
 
+void test()         {
+    QFileDialog dialog(nullptr, "111", "ddde");
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.exec();
+}
+
 void Flameshot::exportCapture(const QPixmap& capture,
                               QRect& selection,
                               const CaptureRequest& req)
@@ -351,6 +364,9 @@ void Flameshot::exportCapture(const QPixmap& capture,
     using CR = CaptureRequest;
     int tasks = req.tasks(), mode = req.captureMode();
     QString path = req.path();
+
+    QPixmap PixmapOutputBuffer(capture);
+    PluginManager::getInstance()->CallImagePost(PixmapOutputBuffer);
 
     if (tasks & CR::PRINT_GEOMETRY) {
         QByteArray byteArray;
@@ -363,7 +379,7 @@ void Flameshot::exportCapture(const QPixmap& capture,
     if (tasks & CR::PRINT_RAW) {
         QByteArray byteArray;
         QBuffer buffer(&byteArray);
-        capture.save(&buffer, "PNG");
+        PixmapOutputBuffer.save(&buffer, "PNG");
         QFile file;
         file.open(stdout, QIODevice::WriteOnly);
 
@@ -373,18 +389,18 @@ void Flameshot::exportCapture(const QPixmap& capture,
 
     if (tasks & CR::SAVE) {
         if (req.path().isEmpty()) {
-            saveToFilesystemGUI(capture);
+            saveToFilesystemGUI(PixmapOutputBuffer);
         } else {
-            saveToFilesystem(capture, path);
+            saveToFilesystem(PixmapOutputBuffer, path);
         }
     }
 
     if (tasks & CR::COPY) {
-        FlameshotDaemon::copyToClipboard(capture);
+        FlameshotDaemon::copyToClipboard(PixmapOutputBuffer);
     }
 
     if (tasks & CR::PIN) {
-        FlameshotDaemon::createPin(capture, selection);
+        FlameshotDaemon::createPin(PixmapOutputBuffer, selection);
         if (mode == CR::SCREEN_MODE || mode == CR::FULLSCREEN_MODE) {
             AbstractLogger::info()
               << QObject::tr("Full screen screenshot pinned to screen");
@@ -399,7 +415,7 @@ void Flameshot::exportCapture(const QPixmap& capture,
             }
         }
 
-        ImgUploaderBase* widget = ImgUploaderManager().uploader(capture);
+        ImgUploaderBase* widget = ImgUploaderManager().uploader(PixmapOutputBuffer);
         widget->show();
         widget->activateWindow();
         // NOTE: lambda can't capture 'this' because it might be destroyed later
@@ -416,8 +432,24 @@ void Flameshot::exportCapture(const QPixmap& capture,
           });
     }
 
+    if(tasks & CR::PRINT_SYSTEM) {
+        QPixmap pixmap = capture;
+        PluginManager::getInstance()->CallPrintPre(pixmap);
+        QPrinter printer;
+        printer.setPageOrientation(QPageLayout::Orientation::Landscape);
+
+        QPrintDialog dialog(&printer);
+        dialog.setWindowTitle(tr("Print Document"));
+        if(dialog.exec() != QDialog::Rejected) {
+            QPainter painter(&printer);
+            pixmap = pixmap.scaled(printer.width(), printer.height(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            QRect rect(0, 0, pixmap.size().width(), pixmap.size().height());
+            painter.drawPixmap(rect, pixmap);
+        }
+    }
+
     if (!(tasks & CR::UPLOAD)) {
-        emit captureTaken(capture);
+        emit captureTaken(PixmapOutputBuffer);
     }
 }
 

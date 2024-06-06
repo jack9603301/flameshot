@@ -8,12 +8,18 @@ find_package(
         Network
         Svg
         DBus
-        LinguistTools)
+        LinguistTools
+        PrintSupport)
 
 if (USE_WAYLAND_CLIPBOARD)
     find_package(KF5GuiAddons)
 endif()
 
+if (USE_PLUGIN_MANAGER)
+    find_package(yaml-cpp)
+endif()
+
+set(USE_PLUGIN_MANAGER ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -213,6 +219,7 @@ target_link_libraries(
         Qt5::DBus
         Qt5::Network
         Qt5::Widgets
+        Qt5::PrintSupport
         ${QTSINGLEAPPLICATION_LIBRARY}
         QtColorWidgets
 
@@ -228,6 +235,14 @@ endif()
 
 if (USE_WAYLAND_GRIM)
     target_compile_definitions(flameshot PRIVATE USE_WAYLAND_GRIM=1)
+endif()
+
+if (USE_PLUGIN_MANAGER)
+    target_compile_definitions(flameshot PRIVATE USE_PLUGIN_MANAGER=1)
+    target_link_libraries(flameshot yaml-cpp::yaml-cpp)
+    if(DEFINED PLUGIN_DIRECTORY)
+        target_compile_definitions(flameshot PRIVATE PLUGIN_DIRECTORY=${PLUGIN_DIRECTORY})
+    endif()
 endif()
 
 if (APPLE)

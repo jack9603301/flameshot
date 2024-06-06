@@ -251,10 +251,10 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
     OverlayMessage::init(this,
                          QGuiAppCurrentScreen().currentScreen()->geometry());
 
-    if (m_config.showHelp()) {
+    /*if (m_config.showHelp()) {
         initHelpMessage();
         OverlayMessage::push(m_helpMessage);
-    }
+    }*/
 
     updateCursor();
 }

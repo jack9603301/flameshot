@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/img">
+        <file alias="polor_wm3.png">data/img/polor_wm3.png</file>
+        <file alias="polor_wm2.png">data/img/polor_wm2.png</file>
+        <file alias="polor_wm1.png">data/img/polor_wm1.png</file>
+    </qresource>
+</RCC>

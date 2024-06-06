@@ -18,6 +18,7 @@
 #include "src/utils/filenamehandler.h"
 #include "src/utils/pathinfo.h"
 #include "src/utils/valuehandler.h"
+#include "src/widgets/capture/capturewidget.h"
 #include <QApplication>
 #include <QDir>
 #include <QLibraryInfo>
@@ -32,6 +33,7 @@
 #include <QDBusMessage>
 #include <desktopinfo.h>
 #endif
+#include "core/pluginmanager.h"
 
 #ifdef Q_OS_LINUX
 // source: https://github.com/ksnip/ksnip/issues/416
@@ -126,6 +128,7 @@ void reinitializeAsQApplication(int& argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+    PluginManager::getInstance()->LoadPlugins();
 #ifdef Q_OS_LINUX
     wayland_hacks();
 #endif
@@ -139,14 +142,18 @@ int main(int argc, char* argv[])
 
     // no arguments, just launch Flameshot
     if (argc == 1) {
-#ifndef USE_EXTERNAL_SINGLEAPPLICATION
-        SingleApplication app(argc, argv);
-#else
-        QtSingleApplication app(argc, argv);
-#endif
+//#ifndef USE_EXTERNAL_SINGLEAPPLICATION
+//        SingleApplication app(argc, argv);
+//#else
+//        QtSingleApplication app(argc, argv);
+//#endif
+        new QApplication(argc, argv);
+        //QCoreApplication app(argc, argv);
+
         configureApp(true);
-        auto c = Flameshot::instance();
-        FlameshotDaemon::start();
+        Flameshot* c = Flameshot::instance();
+        CaptureRequest req(CaptureRequest::GRAPHICAL_MODE);
+        //FlameshotDaemon::start();
 
 #if !(defined(Q_OS_MACOS) || defined(Q_OS_WIN))
         new FlameshotDBusAdapter(c);
@@ -158,7 +165,8 @@ int main(int argc, char* argv[])
         dbus.registerObject(QStringLiteral("/"), c);
         dbus.registerService(QStringLiteral("org.flameshot.Flameshot"));
 #endif
-        return qApp->exec();
+        requestCaptureAndWait(req);
+        //return qApp->exec();
     }
 
 #if !defined(Q_OS_WIN)
@@ -575,6 +583,7 @@ int main(int argc, char* argv[])
         }
     }
 finish:
+    PluginManager::getInstance()->UnLoadPlugins();
 
 #endif
     return 0;
